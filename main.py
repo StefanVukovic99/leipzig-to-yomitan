@@ -91,19 +91,13 @@ def filter_options_tree(options_tree):
     
     return filtered_tree
 
-def get_download_anchors(lang_name):
-    resp = requests.get(f'https://wortschatz.uni-leipzig.de/en/download/{lang_name}')
+def get_download_anchors(lang):
+    resp = requests.get(f'https://wortschatz.uni-leipzig.de/en/download/{lang}')
     parsed_html = BeautifulSoup(resp.content)
     return parsed_html.body.select('a.link_corpora_download')
 
 def get_download_urls(lang):
-    lang_name = languages.get(part3=lang).name
-
-    download_links = get_download_anchors(lang_name)
-    if not download_links:
-        print(f"No download links found for {lang_name}")
-        if lang_name.endswith(')'):
-            download_links = get_download_anchors(lang_name.split(' (')[0])
+    download_links = get_download_anchors(lang)
 
     options_tree = build_options_tree(download_links)
     filtered_options_tree = filter_options_tree(options_tree)
@@ -152,14 +146,10 @@ def processFile(requested_lang, input_file):
     print(f"Processing {input_file.name}...")
     filename = os.path.basename(input_file.name)
     file_lang, source, year, size = get_info_from_filename(filename)
-    country = ''
-    if '-' in file_lang:
-        file_lang, country = get_lang_and_country(file_lang)
-        if country:
-            country = f" ({country})"
-
+    file_lang, country = get_lang_and_country(file_lang)
+    if country:
+        country = f" ({country})"
     file_lang_name = languages.get(part3=file_lang).name
-    
     cleaned_data = defaultdict(int)
     rows = []
     
