@@ -6,9 +6,16 @@ import zipfile
 from bs4 import BeautifulSoup
 import requests
 from iso639 import languages
-from collections import defaultdict
+import os
+import tarfile
+import tempfile
+import shutil
+from datetime import datetime
+import country_converter as coco
 
-# load languages.json 
+# get current date as calver
+calver = datetime.now().strftime("%Y.%m.%d")
+
 PATTERNS = {
     'spa': re.compile(r'^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ ]+$'),
 }
@@ -34,11 +41,11 @@ def convert_int_to_shorthand(value):
     else:
         return f"{value // 1_000_000}M"
         
-def write_index_json(title, year):
+def write_index_json(title):
     with open('index.json', 'w', encoding='utf8') as fd:
         json.dump({
             "title": title,
-            "revision": year,
+            "revision": calver,
             "format": 3
         }, fd, indent=4)
 
@@ -79,7 +86,7 @@ def filter_options_tree(options_tree):
     
     return filtered_tree
 
-def fetch(lang):
+def get_download_urls(lang):
     lang_name = languages.get(part3=lang).name
     resp = requests.get(f'https://wortschatz.uni-leipzig.de/en/download/{lang_name}')
     if(resp.status_code == 404): exit('404 Not Found')
@@ -102,72 +109,129 @@ def get_files_from_tree(filtered_options_tree):
                 files.append(f'https://downloads.wortschatz-leipzig.de/corpora/{filename}')
     return files
 
-def processFile(write_index_json, create_zip, args):
-    with args.input_file as input_file:
-        # Assume files are in this format: spa_news_2023_10K-words.txt
-        lang, source, year, size = args.input_file.name.split('-')[0].split('_')
-        cleaned_data = defaultdict(int)
-        rows = []
-        for line in input_file.readlines():
-            rank, word, occurrence = line.strip().split('\t')
-            rows.append([rank, word, occurrence])
-            if args.lang in PATTERNS and not PATTERNS[args.lang].match(word):
-                continue
-            cleaned_data[word.lower()] += int(occurrence)
+def processFile(requested_lang, input_file):
+    print(f"Processing {input_file.name}...")
+    filename = os.path.basename(input_file.name)
+    file_lang, source, year, size = filename.split('_')
+    country = ''
+    if '-' in file_lang:
+        file_lang, country = file_lang.split('-')
+        converted_country = coco.convert(names=country, to="name")
+        print(f"Country: {converted_country}")
+        country = f' ({converted_country})'
 
-        output = sorted(([word, occurence] for word, occurence in cleaned_data.items()), key=lambda x: x[1], reverse=True)
+    file_lang_name = languages.get(part3=file_lang).name
+    
+    cleaned_data = defaultdict(int)
+    rows = []
+    
+    for line in input_file:
+        rank, word, occurrence = line.strip().split('\t')
+        rows.append([rank, word, occurrence])
+        if args.lang in PATTERNS and not PATTERNS[args.lang].match(word):
+            continue
+        cleaned_data[word.lower()] += int(occurrence)
 
-        # Rank dict
-        with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
-            rank_output = [
-                [
-                    word,
-                    "freq",
-                    {"value": rank, "displayValue": f"{rank}"}
-                ] for rank, (word, _) in enumerate(output, start=1)
-            ]
-            json.dump(rank_output, fd, indent=4, ensure_ascii=False)
+    output = sorted(([word, occurence] for word, occurence in cleaned_data.items()), key=lambda x: x[1], reverse=True)
 
-        write_index_json(f"{source.title()} (Rank)", year)
-        create_zip(f"{source.title()}_{year}_{size}_rank.zip")
+    # Rank dict
+    with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
+        rank_output = [
+            [
+                word,
+                "freq",
+                {"value": rank, "displayValue": f"{rank}"}
+            ] for rank, (word, _) in enumerate(output, start=1)
+        ]
+        json.dump(rank_output, fd, indent=4, ensure_ascii=False)
 
-        # Occurrence dict
-        with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
-            rank_output = [
-                [
-                    word,
-                    "freq",
-                    {"value": rank, "displayValue": f"{occurrence}"}
-                ] for rank, (word, occurrence) in enumerate(output, start=1)
-            ]
-            json.dump(rank_output, fd, indent=4, ensure_ascii=False)
+    title = f"Leipzig {file_lang_name}{country} {source.title()} (Rank)"
+    write_index_json(title)
+    create_zip(f"{title}.zip")
 
-        write_index_json(f"{source.title()} (Occurrence)", year)
-        create_zip(f"{source.title()}_{year}_{size}_occurence.zip")
+    # Occurrence dict
+    with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
+        rank_output = [
+            [
+                word,
+                "freq",
+                {"value": rank, "displayValue": f"{occurrence}"}
+            ] for rank, (word, occurrence) in enumerate(output, start=1)
+        ]
+        json.dump(rank_output, fd, indent=4, ensure_ascii=False)
 
-        # Both dict
-        with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
-            rank_output = [
-                [
-                    word,
-                    "freq",
-                    {"value": rank, "displayValue": f"{rank} ({occurrence})"}
-                ] for rank, (word, occurrence) in enumerate(output, start=1)
-            ]
-            json.dump(rank_output, fd, indent=4, ensure_ascii=False)
+    title = f"Leipzig {file_lang_name}{country} {source.title()} (Occurrence)"
+    write_index_json(title)
+    create_zip(f"{title}.zip")
 
-        write_index_json(f"{source.title()}", year)
-        create_zip(f"{source.title()}_{year}_{size}_both.zip")
+    # Both dict
+    with open(f"term_meta_bank_1.json", 'w', encoding='utf8') as fd:
+        rank_output = [
+            [
+                word,
+                "freq",
+                {"value": rank, "displayValue": f"{rank} ({occurrence})"}
+            ] for rank, (word, occurrence) in enumerate(output, start=1)
+        ]
+        json.dump(rank_output, fd, indent=4, ensure_ascii=False)
+
+    title = f"Leipzig {file_lang_name}{country} {source.title()}"
+    write_index_json(title)
+    create_zip(f"{title}.zip")
+    
+def download_file(url, output_path):
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(output_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+def extract_tarball(tar_path, extract_path):
+    with tarfile.open(tar_path, 'r:gz') as tar:
+        tar.extractall(path=extract_path)
+
+def find_words_file(extract_path):
+    for root, dirs, files in os.walk(extract_path):
+        for file in files:
+            if file.endswith('-words.txt'):
+                return os.path.join(root, file)
+    return None
+
+def process_downloaded_file(file_path, lang):
+    extract_dir = tempfile.mkdtemp()
+    try:
+        extract_tarball(file_path, extract_dir)
+        words_file = find_words_file(extract_dir)
+        if words_file:
+            with open(words_file, 'r', encoding='utf-8') as f:
+                processFile(lang, f)
+        else:
+            print(f"No -words.txt file found in {file_path}")
+    finally:
+        shutil.rmtree(extract_dir)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('lang', type=str, help='Language of the input file')
-    parser.add_argument('input_file', type=argparse.FileType('r'), help='CSV file to read')
-    parser.add_argument('--output', type=str, help='Output file')
+    parser.add_argument('lang', type=str, help='Language code (e.g., "spa" for Spanish)')
     args = parser.parse_args()
-    download_urls = fetch(args.lang)
-    
+
+    download_urls = get_download_urls(args.lang)
+    if (len(download_urls) == 0):
+        print("No files found for the specified language.")
+        exit(1)
+
     for url in download_urls:
-        # Download the file
-    
-        processFile(write_index_json, create_zip, args)
+        file_name = url.split('/')[-1]
+        print(f"Downloading {file_name}...")
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.tar.gz') as temp_file:
+            download_file(url, temp_file.name)
+            print(f"Downloaded {file_name}")
+            
+            print(f"Processing {file_name}...")
+            process_downloaded_file(temp_file.name, args.lang)
+            print(f"Processed {file_name}")
+        
+        os.unlink(temp_file.name)
+
+    print("All files processed successfully.")
