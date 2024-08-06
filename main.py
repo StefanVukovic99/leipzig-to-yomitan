@@ -91,14 +91,19 @@ def filter_options_tree(options_tree):
     
     return filtered_tree
 
+def get_download_anchors(lang_name):
+    resp = requests.get(f'https://wortschatz.uni-leipzig.de/en/download/{lang_name}')
+    parsed_html = BeautifulSoup(resp.content)
+    return parsed_html.body.select('a.link_corpora_download')
+
 def get_download_urls(lang):
     lang_name = languages.get(part3=lang).name
-    resp = requests.get(f'https://wortschatz.uni-leipzig.de/en/download/{lang_name}')
-    if(resp.status_code == 404): exit('404 Not Found')
 
-    parsed_html = BeautifulSoup(resp.content)
-
-    download_links = parsed_html.body.select('a.link_corpora_download')
+    download_links = get_download_anchors(lang_name)
+    if not download_links:
+        print(f"No download links found for {lang_name}")
+        if lang_name.endswith(')'):
+            download_links = get_download_anchors(lang_name.split(' (')[0])
 
     options_tree = build_options_tree(download_links)
     filtered_options_tree = filter_options_tree(options_tree)
@@ -118,16 +123,40 @@ def get_files_from_tree(filtered_options_tree):
                 files.append(f'https://downloads.wortschatz-leipzig.de/corpora/{filename}')
     return files
 
+def get_lang_and_country(lang):
+    parts = lang.split('-')
+    country = ''
+    if(len(parts) == 1):
+        return lang, country
+    if(len(parts) == 2):
+        lang, country = parts
+        converted_country = coco.convert(names=country, to="name")
+        if converted_country == 'not found':
+            converted_country = country
+        return lang, converted_country
+    if(len(parts) == 3):
+        lang, part2, part3 = parts
+        converted_country = coco.convert(names=part2, to="name")
+        if converted_country != 'not found':
+            return lang, f'{converted_country}-{part3}'
+        
+        converted_country = coco.convert(names=part3, to="name")
+        if converted_country == 'not found':
+            return lang, f'{part2}-{part3}'
+        else:
+            return lang, f'{converted_country}-{part2}'
+    print(f"Invalid language: {lang}")
+    return None, None
+    
 def processFile(requested_lang, input_file):
     print(f"Processing {input_file.name}...")
     filename = os.path.basename(input_file.name)
     file_lang, source, year, size = get_info_from_filename(filename)
     country = ''
     if '-' in file_lang:
-        file_lang, country = file_lang.split('-')
-        converted_country = coco.convert(names=country, to="name")
-        print(f"Country: {converted_country}")
-        country = f' ({converted_country})'
+        file_lang, country = get_lang_and_country(file_lang)
+        if country:
+            country = f" ({country})"
 
     file_lang_name = languages.get(part3=file_lang).name
     
