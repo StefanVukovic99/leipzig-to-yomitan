@@ -21,7 +21,12 @@ PATTERNS = {
 }
 
 def get_info_from_filename(filename):
-    lang, source, year, size = filename.split('_')
+    parts = filename.split('_')
+    if len(parts) == 3:
+        lang, source, year = parts
+        size = '0'
+    else:
+        lang, source, year, size = parts
     return lang, source, year, size
 
 def convert_shorthand_to_int(value):
@@ -105,14 +110,18 @@ def get_files_from_tree(filtered_options_tree):
     for lang, lang_options in filtered_options_tree.items():
         for source, source_options in lang_options.items():
             for year, size in source_options.items():
-                filename = f"{lang}_{source}_{year}_{convert_int_to_shorthand(size)}.tar.gz"
+                filename = f"{lang}_{source}_{year}"
+                size = convert_int_to_shorthand(size)
+                if size != '0':
+                    filename += f'_{size}'
+                filename += '.tar.gz'
                 files.append(f'https://downloads.wortschatz-leipzig.de/corpora/{filename}')
     return files
 
 def processFile(requested_lang, input_file):
     print(f"Processing {input_file.name}...")
     filename = os.path.basename(input_file.name)
-    file_lang, source, year, size = filename.split('_')
+    file_lang, source, year, size = get_info_from_filename(filename)
     country = ''
     if '-' in file_lang:
         file_lang, country = file_lang.split('-')
@@ -126,7 +135,7 @@ def processFile(requested_lang, input_file):
     rows = []
     
     for line in input_file:
-        rank, word, occurrence = line.strip().split('\t')
+        rank, word, occurrence = get_line_data(line)
         rows.append([rank, word, occurrence])
         if args.lang in PATTERNS and not PATTERNS[args.lang].match(word):
             continue
@@ -178,6 +187,16 @@ def processFile(requested_lang, input_file):
     title = f"Leipzig {file_lang_name}{country} {source.title()}"
     write_index_json(title)
     create_zip(f"{title}.zip")
+
+def get_line_data(line):
+    parts = line.strip().split('\t')
+    if len(parts) == 3:
+        return parts
+    elif len(parts) == 4:
+        return parts[0], parts[1], parts[3]
+    else:
+        print(f"Invalid line: {line}")
+        return None, None, None
     
 def download_file(url, output_path):
     response = requests.get(url, stream=True)
