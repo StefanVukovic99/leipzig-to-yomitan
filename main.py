@@ -22,10 +22,13 @@ PATTERNS = {
 
 def get_info_from_filename(filename):
     parts = filename.split('_')
+    if(len(parts) < 3 or len(parts) > 4):
+        print(f"Invalid filename: {filename}")
+        return None, None, None, None
     if len(parts) == 3:
         lang, source, year = parts
         size = '0'
-    else:
+    if len(parts) == 4:
         lang, source, year, size = parts
     return lang, source, year, size
 
@@ -71,6 +74,9 @@ def build_options_tree(download_links):
         
         file = file[:-7]
         lang, source, year, size = get_info_from_filename(file)
+        if lang is None:
+            print(f"Invalid filename: {file}")
+            continue
         size_int = convert_shorthand_to_int(size)
         
         options_tree[lang][source][year] = max(options_tree[lang][source].get(year, 0), size_int)
@@ -149,7 +155,11 @@ def processFile(requested_lang, input_file):
     file_lang, country = get_lang_and_country(file_lang)
     if country:
         country = f" ({country})"
-    file_lang_name = languages.get(part3=file_lang).name
+    try:
+        file_lang_name = languages.get(part3=file_lang).name
+    except KeyError:
+        file_lang_name = file_lang
+
     cleaned_data = defaultdict(int)
     rows = []
     
