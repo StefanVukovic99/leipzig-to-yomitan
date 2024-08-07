@@ -1,5 +1,7 @@
 *.zip
 # *.json
+index.json
+term_meta_bank_1.json
 
 *.txt
 !requirements.txt
