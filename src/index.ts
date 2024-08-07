@@ -18,6 +18,12 @@ const SOURCE_START_INDEX = 2;
 const GITHUB_RELEASES_URL =
   'https://github.com/StefanVukovic99/leipzig-to-yomitan/releases/latest/download';
 
+const MARKDOWN_HEADER = `# Downloads
+
+Tip: Use \`ctrl + f\` to quickly search for a language.
+
+`;
+
 const getReleaseUrl = (fileName: string): string =>
   `${GITHUB_RELEASES_URL}/${fileName}`;
 
@@ -83,7 +89,7 @@ function groupLanguagesByFirstLetter(
 }
 
 function generateMarkdown(data: LanguageData): string {
-  let markdown = '';
+  let markdown = MARKDOWN_HEADER;
   const sortedLanguages = Object.keys(data).sort();
 
   // Generate table of contents
