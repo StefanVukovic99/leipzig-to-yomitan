@@ -11,9 +11,15 @@ interface LanguageData {
 
 // Constants
 const INPUT_FILE_PATH = 'data/files.txt';
-const OUTPUT_FILE_PATH = 'output.md';
+const OUTPUT_FILE_PATH = 'downloads.md';
 const LANGUAGE_INDEX = 1;
 const SOURCE_START_INDEX = 2;
+
+const GITHUB_RELEASES_URL =
+  'https://github.com/StefanVukovic99/leipzig-to-yomitan/releases/latest/download';
+
+const getReleaseUrl = (fileName: string): string =>
+  `${GITHUB_RELEASES_URL}/${fileName}`;
 
 // Utility functions
 const capitalize = (s: string): string =>
@@ -94,7 +100,11 @@ function generateMarkdown(data: LanguageData): string {
       const sortedFiles = data[language][source].sort();
 
       for (const file of sortedFiles) {
-        markdown += `- ${file}\n`;
+        const trimmedFile = file.trim();
+        const cleanFile = trimmedFile.replace(/\.zip$/, '');
+        const url = getReleaseUrl(trimmedFile);
+        markdown += `- [${cleanFile}](${url})\n`;
+        // markdown += `- ${file}\n`;
       }
 
       markdown += '\n';
