@@ -152,6 +152,10 @@ def processFile(requested_lang, input_file):
     print(f"Processing {input_file.name}...")
     filename = os.path.basename(input_file.name)
     file_lang, source, year, size = get_info_from_filename(filename)
+    if file_lang is None:
+        print(f"Invalid filename: {filename}")
+        return
+    
     file_lang, country = get_lang_and_country(file_lang)
     if country:
         country = f" ({country})"
