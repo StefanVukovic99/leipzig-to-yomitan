@@ -175,7 +175,7 @@ def processFile(requested_lang, input_file):
         rows.append([rank, word, occurrence])
         if args.lang in PATTERNS and not PATTERNS[args.lang].match(word):
             continue
-        cleaned_data[word.lower()] += int(occurrence)
+        cleaned_data[normalize_word(word, file_lang)] += int(occurrence)
 
     output = sorted(([word, occurence] for word, occurence in cleaned_data.items()), key=lambda x: x[1], reverse=True)
 
@@ -223,6 +223,11 @@ def processFile(requested_lang, input_file):
     title = f"Leipzig {file_lang_name}{country} {source.title()}"
     write_index_json(title)
     create_zip(f"{title}.zip")
+
+def normalize_word(word, lang):
+    if lang == 'deu':
+        return word
+    return word.lower()
 
 def get_line_data(line):
     parts = line.strip().split('\t')
