@@ -1,12 +1,6 @@
 # Downloads
 
-The `occurrence` and `rank` differ in that the occurrence file contains the number of occurrences of each word in the source, while the rank file contains the rank of each word in the source. The rank file is useful for sorting the words by their frequency in the source.
-
-Meanwhile the version of the file without `occurrence` or `rank` is rank-based but also displays the number of occurrences of each word in the source. **This is the recommended file to use for most purposes.**
-
-Tip: Use `ctrl + f` to quickly search for a language.
-
-# Table of Contents
+See the [readme](./readme.md) for more information.
 
 ## A
 
