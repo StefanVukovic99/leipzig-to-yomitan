@@ -37,19 +37,36 @@ const determineSource = (parts: string[]): string => {
   return parts[SOURCE_START_INDEX];
 };
 
+const createAnchor = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '');
+
 // Main functions
+function generateTableOfContents(languages: string[]): string {
+  let toc = '# Table of Contents\n\n';
+  for (const language of languages) {
+    const anchor = createAnchor(language);
+    toc += `- [${language}](#${anchor})\n`;
+  }
+  return toc + '\n';
+}
+
 function generateMarkdown(data: LanguageData): string {
   let markdown = '';
-
   const sortedLanguages = Object.keys(data).sort();
 
+  // Generate table of contents
+  markdown += generateTableOfContents(sortedLanguages);
+
   for (const language of sortedLanguages) {
-    markdown += `# ${language}\n`;
+    markdown += `# ${language}\n\n`;
 
     const sortedSources = Object.keys(data[language]).sort();
 
     for (const source of sortedSources) {
-      markdown += `## ${source}\n`;
+      markdown += `## ${source}\n\n`;
 
       const sortedFiles = data[language][source].sort();
 
