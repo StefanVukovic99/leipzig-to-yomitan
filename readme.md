@@ -1,4 +1,4 @@
-# Leipzig for Yomitan
+# Leipzig to Yomitan
 
 ### [Download](./downloads.md)
 
