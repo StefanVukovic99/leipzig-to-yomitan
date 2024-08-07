@@ -63,7 +63,7 @@ def create_zip(file):
         zipf.write('index.json')
         zipf.write('term_meta_bank_1.json')
 
-def build_options_tree(download_links):
+def build_options_tree(download_links, requested_source):
     options_tree = defaultdict(lambda: defaultdict(dict))
     
     for link in download_links:
@@ -76,6 +76,9 @@ def build_options_tree(download_links):
         lang, source, year, size = get_info_from_filename(file)
         if lang is None:
             print(f"Invalid filename: {file}")
+            continue
+        if requested_source and source != requested_source:
+            print(f"Skipping {file} because source is {source} instead of {requested_source}")
             continue
         size_int = convert_shorthand_to_int(size)
         
@@ -102,10 +105,10 @@ def get_download_anchors(lang):
     parsed_html = BeautifulSoup(resp.content)
     return parsed_html.body.select('a.link_corpora_download')
 
-def get_download_urls(lang):
+def get_download_urls(lang, source):
     download_links = get_download_anchors(lang)
 
-    options_tree = build_options_tree(download_links)
+    options_tree = build_options_tree(download_links, source)
     filtered_options_tree = filter_options_tree(options_tree)
     files = get_files_from_tree(filtered_options_tree)
     return files
@@ -264,10 +267,12 @@ def process_downloaded_file(file_path, lang):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('lang', type=str, help='Language code (e.g., "spa" for Spanish)')
+    parser.add_argument('lang', type=str, help='Language code (e.g, "spa" for Spanish)')
+    parser.add_argument('--source', type=str, help='Source name (e.g, "news" for news corpora)')
+
     args = parser.parse_args()
 
-    download_urls = get_download_urls(args.lang)
+    download_urls = get_download_urls(args.lang, args.source)
     if (len(download_urls) == 0):
         print("No files found for the specified language.")
         exit(1)
