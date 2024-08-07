@@ -1,0 +1,14 @@
+{
+  "name": "leipzig-to-yomitan",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run ."
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

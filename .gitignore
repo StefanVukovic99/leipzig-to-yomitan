@@ -1,5 +1,7 @@
 *.zip
-*.json
+# *.json
 
 *.txt
 !requirements.txt
+
+node_modules/
