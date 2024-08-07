@@ -1,13 +1,20 @@
-// Types
-type FileName = string;
-type Language = string;
-type Source = string;
+const DictTypes = ['Recommended', 'Occurrence', 'Rank'] as const;
 
-interface LanguageData {
-  [language: Language]: {
-    [source: Source]: FileName[];
+type DictType = (typeof DictTypes)[number];
+
+type File = {
+  name: string;
+  size: string;
+  type: DictType;
+};
+
+type LanguageData = {
+  [language: string]: {
+    [source: string]: {
+      [K in DictType]?: File;
+    };
   };
-}
+};
 
 // Constants
 const INPUT_FILE_PATH = 'data/files.txt';
@@ -104,32 +111,36 @@ function generateMarkdown(data: LanguageData): string {
       markdown += `- **${source}**\n\n`;
 
       const files = data[language][source];
-      const recommended = files.find(file => !file.includes('Occurrence') && !file.includes('Rank'));
-      const occurrence = files.find(file => file.includes('Occurrence'));
-      const rank = files.find(file => file.includes('Rank'));
 
-      const links = [];
-      if (recommended) {
-        links.push(`[Recommended](${getReleaseUrl(recommended)})`);
-      }
-      if (occurrence) {
-        links.push(`[Occurrence](${getReleaseUrl(occurrence)})`);
-      }
-      if (rank) {
-        links.push(`[Rank](${getReleaseUrl(rank)})`);
-      }
+      const links = [files.Recommended, files.Occurrence, files.Rank].filter(
+        Boolean
+      ) as File[];
 
-      markdown += links.join(' | ') + '\n\n';
+      markdown +=
+        links
+          .map(
+            (file) =>
+              `[${file.type}](${getReleaseUrl(file.name)}) (${file.size})`
+          )
+          .join(' | ') + '\n\n';
     }
   }
 
   return markdown;
 }
 
-function parseFilenames(filenames: FileName[]): LanguageData {
+function parseFilenames(lines: string[]): LanguageData {
   const data: LanguageData = {};
 
-  for (const filename of filenames) {
+  const pairs: { filename: string; size: string }[] = [];
+
+  for (let i = 0; i < lines.length; i += 2) {
+    const filename = lines[i];
+    const size = lines[i + 1];
+    pairs.push({ filename, size });
+  }
+
+  for (const { filename, size } of pairs) {
     const parts = filename.split('.');
     const language = formatLanguageName(parts[LANGUAGE_INDEX]);
 
@@ -140,9 +151,23 @@ function parseFilenames(filenames: FileName[]): LanguageData {
       data[language] = {};
     }
     if (!data[language][source]) {
-      data[language][source] = [];
+      data[language][source] = {};
     }
-    data[language][source].push(filename.trim());
+    // Default to recommended
+    let type: DictType = 'Recommended';
+    if (filename.includes('Occurrence')) {
+      type = 'Occurrence';
+    }
+    if (filename.includes('Rank')) {
+      type = 'Rank';
+    }
+
+    // Add file to data
+    data[language][source][type] = {
+      name: filename,
+      size: size,
+      type,
+    };
   }
 
   return data;
@@ -153,10 +178,13 @@ async function main() {
     // Read input file
     const inputFile = Bun.file(INPUT_FILE_PATH);
     const input = await inputFile.text();
-    const filenames = input.trim().split('\n');
+    const lines = input
+      .trim()
+      .split('\n')
+      .map((line) => line.trim());
 
     // Parse filenames and generate markdown
-    const data = parseFilenames(filenames);
+    const data = parseFilenames(lines);
     const markdown = generateMarkdown(data);
 
     // Write markdown to file
