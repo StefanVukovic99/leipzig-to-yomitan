@@ -101,19 +101,25 @@ function generateMarkdown(data: LanguageData): string {
     const sortedSources = Object.keys(data[language]).sort();
 
     for (const source of sortedSources) {
-      markdown += `## ${source}\n\n`;
+      markdown += `- **${source}**\n\n`;
 
-      const sortedFiles = data[language][source].sort();
+      const files = data[language][source];
+      const recommended = files.find(file => !file.includes('Occurrence') && !file.includes('Rank'));
+      const occurrence = files.find(file => file.includes('Occurrence'));
+      const rank = files.find(file => file.includes('Rank'));
 
-      for (const file of sortedFiles) {
-        const trimmedFile = file.trim();
-        const cleanFile = trimmedFile.replace(/\.zip$/, '');
-        const url = getReleaseUrl(trimmedFile);
-        markdown += `- [${cleanFile}](${url})\n`;
-        // markdown += `- ${file}\n`;
+      const links = [];
+      if (recommended) {
+        links.push(`[Recommended](${getReleaseUrl(recommended)})`);
+      }
+      if (occurrence) {
+        links.push(`[Occurrence](${getReleaseUrl(occurrence)})`);
+      }
+      if (rank) {
+        links.push(`[Rank](${getReleaseUrl(rank)})`);
       }
 
-      markdown += '\n';
+      markdown += links.join(' | ') + '\n\n';
     }
   }
 
@@ -136,7 +142,7 @@ function parseFilenames(filenames: FileName[]): LanguageData {
     if (!data[language][source]) {
       data[language][source] = [];
     }
-    data[language][source].push(filename);
+    data[language][source].push(filename.trim());
   }
 
   return data;
