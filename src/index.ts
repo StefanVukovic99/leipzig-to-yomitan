@@ -46,11 +46,34 @@ const createAnchor = (text: string): string =>
 // Main functions
 function generateTableOfContents(languages: string[]): string {
   let toc = '# Table of Contents\n\n';
-  for (const language of languages) {
-    const anchor = createAnchor(language);
-    toc += `- [${language}](#${anchor})\n`;
+  const groupedLanguages = groupLanguagesByFirstLetter(languages);
+
+  for (const [letter, langs] of Object.entries(groupedLanguages).sort()) {
+    toc += `## ${letter}\n\n`;
+    toc += langs
+      .map((lang) => {
+        const anchor = createAnchor(lang);
+        return `[${lang}](#${anchor})`;
+      })
+      .join('&nbsp;&nbsp;&nbsp;');
+    toc += '\n\n';
   }
-  return toc + '\n';
+
+  return toc;
+}
+
+function groupLanguagesByFirstLetter(
+  languages: string[]
+): Record<string, string[]> {
+  const grouped: Record<string, string[]> = {};
+  for (const lang of languages) {
+    const firstLetter = lang[0].toUpperCase();
+    if (!grouped[firstLetter]) {
+      grouped[firstLetter] = [];
+    }
+    grouped[firstLetter].push(lang);
+  }
+  return grouped;
 }
 
 function generateMarkdown(data: LanguageData): string {
